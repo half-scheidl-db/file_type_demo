@@ -1,0 +1,21 @@
+resources:
+  apps:
+    visual_inspection_app:
+      name: file-type-visual-inspection
+      description: Minimal Next.js UI for native FILE visual-inspection records.
+      source_code_path: ../app
+      user_api_scopes:
+        - sql:restricted-query
+        - files
+      resources:
+        - name: sql-warehouse
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: CAN_USE
+        - name: inspection-volume
+          uc_securable:
+            securable_type: VOLUME
+            securable_full_name: ${var.catalog}.${var.schema}.${var.volume}
+            permission: READ_VOLUME
+      lifecycle:
+        started: true
