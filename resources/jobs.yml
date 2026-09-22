@@ -1,0 +1,9 @@
+resources:
+  jobs:
+    refresh_inspections:
+      name: refresh-file-type-inspections
+      tasks:
+        - task_key: refresh_pipeline
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.inspection_pipeline.id}
+            full_refresh: false
