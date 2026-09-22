@@ -1,0 +1,23 @@
+# Optional SQL warehouse provisioning.
+#
+# This file defines a serverless SQL warehouse that is created when the bundle
+# is deployed. The app (app.yml) references this provisioned warehouse by
+# default via ${resources.sql_warehouses.demo_warehouse.id}.
+#
+# To use an existing warehouse instead:
+#   1. Remove or rename this file so it is no longer included by `resources/*.yml`.
+#   2. Set the `warehouse_id` variable in databricks.yml (or via --var="warehouse_id=<id>"  ).
+#   3. In app.yml, change the sql-warehouse resource `id` back to ${var.warehouse_id}.
+
+resources:
+  sql_warehouses:
+    demo_warehouse:
+      name: file-type-demo-warehouse
+      cluster_size: Small
+      min_num_clusters: 1
+      max_num_clusters: 1
+      auto_stop_mins: 10
+      enable_serverless_compute: true
+      enable_photon: true
+      lifecycle:
+        prevent_destroy: true

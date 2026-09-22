@@ -16,7 +16,11 @@ variables:
     description: Unity Catalog volume used as the external inspection-system drop zone.
     default: inspection_dropzone
   warehouse_id:
-    description: Existing SQL warehouse ID used by the Databricks App.
+    description: >-
+      Existing SQL warehouse ID. Only used when the optional warehouse
+      resource (resources/warehouse.yml) is not included. By default the
+      bundle provisions its own serverless warehouse.
+    default: ""
   model_endpoint:
     description: Multimodal Databricks model endpoint used by ai_query.
     default: system.ai.llama-4-maverick
