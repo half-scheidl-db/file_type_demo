@@ -57,6 +57,20 @@ Next.js Databricks App
 │   └── lib/
 │       ├── databricks.ts
 │       └── types.ts
+├── sample-data/
+│   └── inspection-images/
+│       ├── wave1/
+│       │   ├── 01_pass_normal_a.png
+│       │   ├── 02_pass_normal_b.png
+│       │   └── 03_pass_normal_c.png
+│       └── wave2/
+│           ├── 04_fail_missing_cap.png
+│           ├── 05_fail_crooked_label.png
+│           ├── 06_fail_damaged_housing.png
+│           ├── 07_fail_peeling_label.png
+│           ├── 08_fail_contamination.png
+│           ├── 09_review_obscured.png
+│           └── 10_review_blurred.png
 ├── utils/
 │   └── upload-images.sh
 └── README.md
@@ -118,21 +132,21 @@ The sample images are intentionally **not** uploaded by deployment.
 Wave 1:
 
 ```bash
-./utils/upload-images.sh ./wave1
+./utils/upload-images.sh ./sample-data/inspection-images/wave1
 # or
-./utils/upload-images.sh ./wave1 --profile DEFAULT
+./utils/upload-images.sh ./sample-data/inspection-images/wave1 --profile DEFAULT
 ```
 
 Wave 2:
 
 ```bash
-./utils/upload-images.sh ./wave2
+./utils/upload-images.sh ./sample-data/inspection-images/wave2
 ```
 
 Override the UC destination when needed:
 
 ```bash
-./utils/upload-images.sh ./wave1 \
+./utils/upload-images.sh ./sample-data/inspection-images/wave1 \
   --catalog multimodal_demo \
   --schema manufacturing \
   --volume inspection_dropzone
@@ -233,7 +247,7 @@ Databricks Apps detects `package.json`, installs npm dependencies, runs `npm run
 ### 2. Wave 1 — three PASS images
 
 ```bash
-./utils/upload-images.sh ./wave1
+./utils/upload-images.sh ./sample-data/inspection-images/wave1
 databricks bundle run refresh_inspections -t dev
 ```
 
@@ -258,7 +272,7 @@ inspection_image FILE EXTERNAL
 Without clearing any table or pipeline state:
 
 ```bash
-./utils/upload-images.sh ./wave2
+./utils/upload-images.sh ./sample-data/inspection-images/wave2
 databricks bundle run refresh_inspections -t dev
 ```
 
@@ -305,11 +319,11 @@ Then validate incremental behavior explicitly:
 
 ```bash
 # Wave 1
-./utils/upload-images.sh ./wave1
+./utils/upload-images.sh ./sample-data/inspection-images/wave1
 databricks bundle run refresh_inspections -t dev
 
 # Wave 2 — no table clearing, no full refresh
-./utils/upload-images.sh ./wave2
+./utils/upload-images.sh ./sample-data/inspection-images/wave2
 databricks bundle run refresh_inspections -t dev
 ```
 
