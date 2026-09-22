@@ -1,36 +1,29 @@
-# Databricks FILE type — pharmaceutical visual inspection demo
+# Pharmaceutical visual inspection with Databricks FILE
 
-A deliberately small end-to-end demo for one customer message:
+This repository contains a small Databricks demo for ingesting pharmaceutical manufacturing inspection images as native `FILE` values, enriching them with manufacturing metadata, analyzing them with multimodal AI, and displaying the results in a Databricks App.
 
-> **The image isn’t an attachment to the data anymore. It is data.**
+The flow is:
 
 ```text
-External inspection system
-        ↓
-Unity Catalog Volume drop zone
-        ↓
-STREAM read_files(..., format => 'file')
-        ↓
-inspection_image FILE EXTERNAL + manufacturing metadata
-        ↓
-multimodal ai_query
-        ↓
+Inspection images
+      ↓
+Unity Catalog Volume
+      ↓
+Lakeflow Declarative Pipeline
+      ↓
+inspection_image FILE EXTERNAL
+      ↓
+ai_query multimodal inspection
+      ↓
 Next.js Databricks App
 ```
 
-## What this demonstrates
+The example uses synthetic images of a fictional injection pen. No real medicine or company branding is used.
 
-- **Native:** `inspection_image FILE EXTERNAL`, not `image_path STRING`.
-- **Incremental:** a normal Lakeflow pipeline update discovers only newly arrived files.
-- **Multimodal:** the governed `FILE` is read natively by Databricks and supplied to `ai_query`; there is no application-side download/base64 step for inference.
-- **Unified:** manufacturing context, original image evidence, FILE metadata, and AI interpretation are queryable together.
-- **Governed:** the Volume, Delta tables, pipeline, SQL access, and App stay inside Databricks / Unity Catalog governance.
-
-## Directory tree
+## Repository structure
 
 ```text
 .
-├── .gitignore
 ├── databricks.yml
 ├── resources/
 │   ├── app.yml
@@ -78,30 +71,41 @@ Next.js Databricks App
 
 ## Prerequisites
 
-1. Databricks workspace with Unity Catalog, serverless Lakeflow pipelines, Databricks Apps, and a serverless/pro SQL warehouse.
-2. Current Databricks CLI. This project targets CLI **1.17.0+** and explicitly uses the **direct** deployment engine.
-3. Workspace admin enables the **FILE type Beta** from the Previews page. FILE ingestion in a pipeline requires the `PREVIEW` channel.
-4. A multimodal model endpoint supported by `ai_query`. The default is `system.ai.llama-4-maverick`; override it if that endpoint is unavailable in your workspace.
-5. The pipeline owner/run-as identity needs `CAN QUERY` on the selected model endpoint plus privileges to create/write the target pipeline tables and read the Volume.
-6. The deploying identity needs privileges to create the configured catalog, schema, and volume, and permission to create/manage the App and pipeline.
-7. App users need `SELECT` on the final `inspection_results` table, `READ VOLUME` on the drop-zone Volume, and `CAN USE` on the configured SQL warehouse. The App uses user authorization so those user permissions remain effective.
+You need:
 
-## Bundle variables
+- a Databricks workspace with Unity Catalog
+- serverless Lakeflow Declarative Pipelines
+- Databricks Apps
+- a SQL warehouse
+- a recent Databricks CLI
+- FILE type enabled in the workspace
+- a multimodal model endpoint supported by `ai_query`
 
-| Variable | Default | Required override? |
-|---|---|---|
-| `catalog` | `multimodal_demo` | optional |
-| `schema` | `manufacturing` | optional |
-| `volume` | `inspection_dropzone` | optional |
-| `warehouse_id` | none | **yes** |
-| `model_endpoint` | `system.ai.llama-4-maverick` | if unavailable |
+The pipeline runs on the `PREVIEW` channel because FILE ingestion is currently a preview feature.
 
-Set variables with `BUNDLE_VAR_...` environment variables or `--var`:
+The pipeline identity needs access to the target catalog/schema/volume and permission to query the configured model endpoint. App users need `SELECT` on `inspection_results`, `READ VOLUME` on the inspection volume, and `CAN USE` on the SQL warehouse.
+
+## Configuration
+
+The bundle exposes these variables:
+
+| Variable | Default |
+|---|---|
+| `catalog` | `multimodal_demo` |
+| `schema` | `manufacturing` |
+| `volume` | `inspection_dropzone` |
+| `warehouse_id` | no default |
+| `model_endpoint` | `system.ai.llama-4-maverick` |
+
+At minimum, set the warehouse ID:
 
 ```bash
 export BUNDLE_VAR_warehouse_id="<warehouse-id>"
+```
 
-# Optional overrides
+Optional overrides:
+
+```bash
 export BUNDLE_VAR_catalog="multimodal_demo"
 export BUNDLE_VAR_schema="manufacturing"
 export BUNDLE_VAR_volume="inspection_dropzone"
@@ -110,40 +114,48 @@ export BUNDLE_VAR_model_endpoint="system.ai.llama-4-maverick"
 
 ## Deploy
 
+Validate and deploy the bundle:
+
 ```bash
 databricks bundle validate -t dev
 databricks bundle deploy -t dev
 ```
 
-The bundle uses the direct deployment engine to manage the catalog, schema, Volume, Lakeflow pipeline, refresh job, and Databricks App. The App has `lifecycle.started: true`, so deployment leaves it started.
+The bundle creates or manages the catalog, schema, volume, Lakeflow pipeline, refresh job, and Databricks App.
 
-The drop zone is:
+The inspection drop zone is:
 
 ```text
 /Volumes/<catalog>/<schema>/<volume>/
 ```
 
-`src/setup/setup.sql` contains the equivalent idempotent DDL as a readable/reference setup script. Bundle-managed UC resources are the deployment path, which guarantees the Volume exists before the pipeline resource is registered.
+`src/setup/setup.sql` contains equivalent idempotent DDL for the catalog, schema, and volume. It is mainly useful for inspection or manual setup; the bundle is the normal deployment path.
 
-The sample images are intentionally **not** uploaded by deployment.
+The sample images are not uploaded during deployment.
 
-## External-ingestion simulation
+## Upload inspection images
 
-Wave 1:
+`utils/upload-images.sh` simulates an external inspection system writing image files into the Unity Catalog Volume.
+
+Upload the first three images:
 
 ```bash
 ./utils/upload-images.sh ./sample-data/inspection-images/wave1
-# or
+```
+
+With an explicit CLI profile:
+
+```bash
 ./utils/upload-images.sh ./sample-data/inspection-images/wave1 --profile DEFAULT
 ```
 
-Wave 2:
+Upload the remaining images later:
 
 ```bash
 ./utils/upload-images.sh ./sample-data/inspection-images/wave2
 ```
 
-Override the UC destination when needed:
+The destination can also be overridden:
 
 ```bash
 ./utils/upload-images.sh ./sample-data/inspection-images/wave1 \
@@ -152,17 +164,11 @@ Override the UC destination when needed:
   --volume inspection_dropzone
 ```
 
-Environment variables `DEMO_CATALOG`, `DEMO_SCHEMA`, and `DEMO_VOLUME` are also accepted by the upload utility.
+The script processes only `.png`, `.jpg`, and `.jpeg` files. It preserves filenames and does not delete anything from the volume.
 
-The utility uploads only `.png`, `.jpg`, and `.jpeg` files, preserves filenames, prints every upload, and never deletes anything from the drop zone.
+## Ingestion
 
-## Trigger / update ingestion
-
-```bash
-databricks bundle run refresh_inspections -t dev
-```
-
-The job triggers a **normal** pipeline update (`full_refresh: false`). The Bronze table uses:
+The Bronze streaming table is defined in `src/pipeline/inspections.sql` and reads the volume with:
 
 ```sql
 FROM STREAM read_files(
@@ -171,9 +177,55 @@ FROM STREAM read_files(
 )
 ```
 
-Lakeflow/Auto Loader state means the Wave 2 update discovers only files added after the Wave 1 update. Existing images are not manually deduplicated or rediscovered through custom filename state.
+Each file becomes a row with:
 
-## Query the unified result
+- `inspection_id`
+- `file_name`
+- `ingested_at`
+- `inspection_image FILE EXTERNAL`
+- FILE metadata such as URI, content type, size, and checksum
+- synthetic manufacturing metadata such as batch, line, equipment, and inspection timestamp
+
+`FILE EXTERNAL` is used because the source images already live in a Unity Catalog Volume. The table keeps a governed reference to the file instead of copying the image into the table.
+
+Run a normal pipeline update with:
+
+```bash
+databricks bundle run refresh_inspections -t dev
+```
+
+Because the source uses streaming `read_files`, files already processed by a successful pipeline update are not rediscovered on the next normal update.
+
+## Multimodal inspection
+
+The downstream `inspection_results` streaming table reads new rows from `inspection_files` and sends the inspection image to `ai_query`.
+
+The prompt classifies each image as:
+
+- `PASS`
+- `FAIL`
+- `REVIEW`
+
+It checks for:
+
+- missing protective cap
+- crooked or misaligned label
+- damaged housing
+- partially detached label
+- visible contamination
+- image obstruction
+- insufficient image quality
+
+The result is parsed into typed columns:
+
+- `status`
+- `observed_issue`
+- `confidence`
+- `reason`
+
+The image remains available in the same result row as `inspection_image FILE EXTERNAL`.
+
+Example query:
 
 ```sql
 SELECT
@@ -191,32 +243,24 @@ FROM inspection_results
 ORDER BY ingested_at DESC;
 ```
 
-The `inspection_image` column is `FILE EXTERNAL`. The source bytes remain in the governed Volume rather than being copied into the Delta table.
+## Databricks App
 
-## App behavior
+The Next.js app under `app/` queries `inspection_results` through the Databricks SQL Statement Execution API.
 
-The App page is intentionally small:
+The main page shows the inspection image, status, filename, batch, production line, observed issue, and confidence. Opening a record shows the AI reason, equipment metadata, FILE URI, content type, size, and checksum.
 
-- title: **Visual Inspection**
-- subtitle: **Native multimodal manufacturing data with Databricks FILE**
-- cards: Total inspections, PASS, FAIL / REVIEW
-- one visual card per inspection
-- click a card for image, AI reason, manufacturing metadata, FILE URI, content type, size, and checksum
+Images are retrieved through a server-side Next.js route. The route looks up the corresponding FILE row and streams the image through the Databricks Files API. Databricks credentials are not sent to the browser.
 
-The browser never receives a Databricks credential. `/api/image/[inspectionId]` executes server-side, resolves the inspection row through Databricks SQL, then streams the referenced Volume file through the Databricks Files API.
-
-The App requests only:
+The App requests these user API scopes:
 
 ```text
 sql:restricted-query
 files
 ```
 
-It reads the forwarded Databricks Apps user token server-side, so Unity Catalog controls continue to apply to the current user.
+## Local development
 
-## Local Next.js / Bun development
-
-Databricks Apps currently supports Node.js 22.16+. Bun is only a local convenience:
+Bun can be used locally:
 
 ```bash
 cd app
@@ -224,7 +268,7 @@ bun install
 bun dev
 ```
 
-For local access to Databricks data:
+For local access to Databricks:
 
 ```bash
 export DATABRICKS_HOST="https://<workspace-host>"
@@ -234,97 +278,77 @@ export DEMO_CATALOG="multimodal_demo"
 export DEMO_SCHEMA="manufacturing"
 ```
 
-Do not commit local `.env` files or credentials. In Databricks Apps, the SQL warehouse ID and Volume path come from App resource bindings instead.
+Do not commit local tokens or `.env` files.
 
-Databricks Apps detects `package.json`, installs npm dependencies, runs `npm run build`, then runs the `app.yaml` command. Production starts `server.mjs`, which binds to `0.0.0.0` and uses `process.env.PORT` (falling back to `DATABRICKS_APP_PORT`).
-
-## 5-minute Wave 1 → Wave 2 script
-
-### 1. Set the frame
-
-> “This Volume represents the drop zone of an external vision-inspection system. Databricks doesn’t own the camera; it governs and discovers what the camera system lands.”
-
-### 2. Wave 1 — three PASS images
+The deployed app runs on Node.js and starts with:
 
 ```bash
-./utils/upload-images.sh ./sample-data/inspection-images/wave1
-databricks bundle run refresh_inspections -t dev
-```
-
-Open the App. With the three synthetic PASS images, the intended view is:
-
-```text
-3 inspections
-3 PASS
-0 FAIL / REVIEW
-```
-
-Then show `inspection_files` or `inspection_results` in SQL and point specifically at:
-
-```sql
-inspection_image FILE EXTERNAL
-```
-
-> “This is not an image path column. The image itself is a first-class data type with metadata and governed content access.”
-
-### 3. Wave 2 — defects and review cases
-
-Without clearing any table or pipeline state:
-
-```bash
-./utils/upload-images.sh ./sample-data/inspection-images/wave2
-databricks bundle run refresh_inspections -t dev
-```
-
-Refresh the App. Existing rows stay; only the newly arrived files flow through Bronze and then through the streaming AI result table.
-
-> “External files arrived, were incrementally discovered, became FILE rows, were interpreted by multimodal AI, and the App immediately queried the unified result.”
-
-### 4. Close
-
-> **The image isn’t an attachment to the data anymore. It is data.**
-
-## Design decisions and limitations
-
-- **FILE is Beta.** The Lakeflow pipeline intentionally uses `channel: PREVIEW`.
-- **FILE EXTERNAL is intentional.** The images already live in a UC Volume, so the table stores governed references without making a second copy.
-- **No byte read for metadata.** URI, content type, size, and checksum are read from FILE metadata. `read_files` currently does not populate `FILE.checksum`, so the demo retains that field but deterministically falls back to `sha2(file.uri, 256)` for `inspection_id`. It does not read image bytes merely to create an ID.
-- **AI needs image bytes.** `ai_query` currently accepts multimodal content through its `files` argument. `CAST(inspection_image AS BINARY)` is therefore the one native content read for inference; no custom downloader or base64 logic is used.
-- **Incremental AI processing.** `inspection_results` is itself a streaming table reading `STREAM inspection_files`, so a normal Wave 2 update consumes new Bronze rows. A **full refresh** intentionally reprocesses everything.
-- **Inference is illustrative, not validated GMP inspection.** The synthetic defects are designed to be visually obvious, but foundation-model classification remains probabilistic.
-- **Image serving uses the Databricks Files API.** This keeps cloud-storage credentials out of the browser and keeps Volume authorization inside Databricks.
-- **No package lock is committed in this minimal version.** Databricks Apps runs `npm install` when no pnpm lockfile is present. You can generate and commit `package-lock.json` with `npm install --package-lock-only` if your team wants a fully pinned npm dependency graph.
-
-## Validation
-
-Run before the demo in the target workspace:
-
-```bash
-# Bundle schema + workspace-aware validation
-databricks bundle validate -t dev
-
-# Node/Next build
-cd app
-npm install
-npm run build
-
-# Production startup smoke test
-PORT=3000 DATABRICKS_HOST="https://<workspace-host>" \
-DATABRICKS_TOKEN="<token>" DATABRICKS_WAREHOUSE_ID="<warehouse-id>" \
-DEMO_CATALOG="multimodal_demo" DEMO_SCHEMA="manufacturing" \
 npm run start
 ```
 
-Then validate incremental behavior explicitly:
+`server.mjs` binds to `0.0.0.0` and uses `process.env.PORT`.
+
+## Demo sequence
+
+Start with the three PASS images:
 
 ```bash
-# Wave 1
 ./utils/upload-images.sh ./sample-data/inspection-images/wave1
 databricks bundle run refresh_inspections -t dev
+```
 
-# Wave 2 — no table clearing, no full refresh
+The app should show three inspection records.
+
+Then upload the remaining images without clearing the tables or resetting pipeline state:
+
+```bash
 ./utils/upload-images.sh ./sample-data/inspection-images/wave2
 databricks bundle run refresh_inspections -t dev
 ```
 
-A normal second update must retain Wave 1 rows and append only Wave 2 files/results.
+Refresh the app. The original three rows remain and the new rows appear after ingestion and AI processing.
+
+For a short demo, show:
+
+1. the Unity Catalog Volume before and after each upload
+2. `inspection_files` with `inspection_image FILE EXTERNAL`
+3. `inspection_results` with the FILE and AI result columns
+4. the Next.js app showing the same records and source images
+
+## Notes
+
+- FILE ingestion is currently a preview feature, so the pipeline uses `channel: PREVIEW`.
+- `inspection_id` is derived deterministically from FILE metadata. If a checksum is unavailable, the pipeline falls back to hashing the URI.
+- FILE metadata is read without loading image bytes.
+- Multimodal inference requires the image content, so the FILE is cast to binary when passed to `ai_query`.
+- The synthetic image classifications are for demonstration only and are not a validated GMP inspection system.
+- The app serves image content through Databricks rather than exposing cloud-storage credentials.
+- A normal pipeline update processes newly arrived files. A full refresh intentionally reprocesses the dataset.
+
+## Validation
+
+Before presenting the demo:
+
+```bash
+databricks bundle validate -t dev
+```
+
+Build the app:
+
+```bash
+cd app
+npm install
+npm run build
+```
+
+Then test the two ingestion waves:
+
+```bash
+./utils/upload-images.sh ./sample-data/inspection-images/wave1
+databricks bundle run refresh_inspections -t dev
+
+./utils/upload-images.sh ./sample-data/inspection-images/wave2
+databricks bundle run refresh_inspections -t dev
+```
+
+The second update should keep the original Wave 1 rows and process only the newly added files.
