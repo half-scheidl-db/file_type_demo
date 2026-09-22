@@ -1,0 +1,18 @@
+resources:
+  pipelines:
+    inspection_pipeline:
+      name: file-type-visual-inspection
+      serverless: true
+      channel: PREVIEW
+      catalog: ${var.catalog}
+      schema: ${var.schema}
+      continuous: false
+      development: true
+      libraries:
+        - file:
+            path: ../src/pipeline/inspections.sql
+      configuration:
+        demo.catalog: ${var.catalog}
+        demo.schema: ${var.schema}
+        demo.volume: ${var.volume}
+        demo.model_endpoint: ${var.model_endpoint}
