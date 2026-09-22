@@ -1,0 +1,12 @@
+# Node / Next.js
+app/node_modules/
+app/.next/
+app/.env*
+
+# Databricks bundle state
+.databricks/
+
+# Local OS/editor files
+.DS_Store
+.vscode/
+.idea/
