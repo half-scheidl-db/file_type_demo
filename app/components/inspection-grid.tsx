@@ -16,20 +16,57 @@ function timeLabel(value: string) {
   return Number.isNaN(date.valueOf()) ? value : date.toLocaleString();
 }
 
+function observationTone(value: string | boolean) {
+  if (value === true) return "negative";
+  if (["MISSING", "MISALIGNED", "DETACHED", "DAMAGED", "PRESENT", "INSUFFICIENT"].includes(String(value))) {
+    return "negative";
+  }
+  if (value === "UNKNOWN") return "review";
+  return "normal";
+}
+
+function observationLabel(value: string | boolean) {
+  if (typeof value === "boolean") return value ? "Detected" : "None";
+  return value.replaceAll("_", " ").toLowerCase();
+}
+
+function Observation({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | boolean;
+}) {
+  return (
+    <div className="observation">
+      <dt>{label}</dt>
+      <dd className={`observationValue ${observationTone(value)}`}>{observationLabel(value)}</dd>
+    </div>
+  );
+}
+
 export default function InspectionGrid({ inspections }: { inspections: InspectionRecord[] }) {
   const [selected, setSelected] = useState<InspectionRecord | null>(null);
 
   if (inspections.length === 0) {
     return (
       <section className="emptyState">
-        <strong>No inspections yet</strong>
-        <span>Drop images into the Unity Catalog Volume, then update the pipeline.</span>
+        <strong>No inspection results available</strong>
+        <span>New inspection records will appear here after processing.</span>
       </section>
     );
   }
 
   return (
     <>
+      <div className="sectionHeading">
+        <div>
+          <h2>Inspection records</h2>
+          <p>Latest automated assessments for the current batch.</p>
+        </div>
+        <span className="recordCount">{inspections.length} records</span>
+      </div>
+
       <section className="grid" aria-label="Inspection records">
         {inspections.map((item) => (
           <button key={item.inspectionId} className="inspectionCard" onClick={() => setSelected(item)}>
@@ -44,7 +81,7 @@ export default function InspectionGrid({ inspections }: { inspections: Inspectio
               <dl>
                 <div><dt>Batch</dt><dd>{item.batchId}</dd></div>
                 <div><dt>Line</dt><dd>{item.productionLine}</dd></div>
-                <div><dt>Issue</dt><dd>{item.observedIssue || "none"}</dd></div>
+                <div><dt>Finding</dt><dd>{item.observedIssue || "none"}</dd></div>
                 <div><dt>Confidence</dt><dd>{Math.round(item.confidence * 100)}%</dd></div>
               </dl>
             </div>
@@ -54,7 +91,13 @@ export default function InspectionGrid({ inspections }: { inspections: Inspectio
 
       {selected && (
         <div className="modalBackdrop" role="presentation" onMouseDown={() => setSelected(null)}>
-          <section className="modal" role="dialog" aria-modal="true" aria-label={`Inspection ${selected.fileName}`} onMouseDown={(event) => event.stopPropagation()}>
+          <section
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Inspection ${selected.fileName}`}
+            onMouseDown={(event) => event.stopPropagation()}
+          >
             <button className="closeButton" aria-label="Close" onClick={() => setSelected(null)}>×</button>
             <div className="modalImage">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -62,20 +105,40 @@ export default function InspectionGrid({ inspections }: { inspections: Inspectio
             </div>
             <div className="modalBody">
               <div className="modalTitleRow">
-                <div><div className="eyebrow">AI interpretation</div><h2>{selected.fileName}</h2></div>
+                <div>
+                  <div className="eyebrow">Inspection result</div>
+                  <h2>{selected.fileName}</h2>
+                </div>
                 <span className={`badge static ${selected.status.toLowerCase()}`}>{selected.status}</span>
               </div>
-              <div className="reason"><strong>{selected.observedIssue || "none"}</strong><span>{selected.reason}</span></div>
+
+              <div className="reason">
+                <strong>{selected.observedIssue || "none"}</strong>
+                <span>{selected.reason}</span>
+              </div>
+
+              <div className="subsectionTitle">Inspection checks</div>
+              <dl className="observations">
+                <Observation label="Protective cap" value={selected.capStatus} />
+                <Observation label="Label alignment" value={selected.labelAlignment} />
+                <Observation label="Label attachment" value={selected.labelAttachment} />
+                <Observation label="Housing" value={selected.housingCondition} />
+                <Observation label="Contamination" value={selected.contamination} />
+                <Observation label="Obstruction" value={selected.imageObstruction} />
+                <Observation label="Image quality" value={selected.imageQuality} />
+                <Observation label="Confidence" value={`${Math.round(selected.confidence * 100)}%`} />
+              </dl>
+
+              <div className="subsectionTitle">Production context</div>
               <dl className="details">
-                <div><dt>Confidence</dt><dd>{Math.round(selected.confidence * 100)}%</dd></div>
                 <div><dt>Batch</dt><dd>{selected.batchId}</dd></div>
                 <div><dt>Production line</dt><dd>{selected.productionLine}</dd></div>
                 <div><dt>Equipment</dt><dd>{selected.equipmentId}</dd></div>
                 <div><dt>Inspection timestamp</dt><dd>{timeLabel(selected.inspectionTs)}</dd></div>
                 <div><dt>Content type</dt><dd>{selected.contentType || "—"}</dd></div>
-                <div><dt>Size</dt><dd>{sizeLabel(selected.fileSize)}</dd></div>
-                <div className="wide"><dt>FILE URI</dt><dd>{selected.fileUri}</dd></div>
-                <div className="wide"><dt>Checksum</dt><dd>{selected.checksum || "not populated by file ingestion"}</dd></div>
+                <div><dt>File size</dt><dd>{sizeLabel(selected.fileSize)}</dd></div>
+                <div className="wide"><dt>Source file</dt><dd>{selected.fileUri}</dd></div>
+                <div className="wide"><dt>Checksum</dt><dd>{selected.checksum || "Not available"}</dd></div>
               </dl>
             </div>
           </section>
