@@ -16,12 +16,15 @@ function timeLabel(value: string) {
   return Number.isNaN(date.valueOf()) ? value : date.toLocaleString();
 }
 
-function observationTone(value: string | boolean) {
+function observationTone(label: string, value: string | boolean) {
   if (value === true) return "negative";
-  if (["MISSING", "MISALIGNED", "DETACHED", "DAMAGED", "PRESENT", "INSUFFICIENT"].includes(String(value))) {
+  if (value === "UNKNOWN") return "review";
+  if (
+    ["MISSING", "MISALIGNED", "DETACHED", "DAMAGED", "INSUFFICIENT"].includes(String(value)) ||
+    (label === "Contamination" && value === "PRESENT")
+  ) {
     return "negative";
   }
-  if (value === "UNKNOWN") return "review";
   return "normal";
 }
 
@@ -40,7 +43,7 @@ function Observation({
   return (
     <div className="observation">
       <dt>{label}</dt>
-      <dd className={`observationValue ${observationTone(value)}`}>{observationLabel(value)}</dd>
+      <dd className={`observationValue ${observationTone(label, value)}`}>{observationLabel(value)}</dd>
     </div>
   );
 }
