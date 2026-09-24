@@ -23,7 +23,7 @@ variables:
     default: ""
   model_endpoint:
     description: Multimodal Databricks model endpoint used by ai_query.
-    default: system.ai.gpt-5-5
+    default: system.ai.gpt-5-6-luna
 
 resources:
   catalogs:
