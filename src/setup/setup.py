@@ -42,8 +42,6 @@ import os
 import shutil
 from pathlib import Path
 
-from pyspark.sql import SparkSession
-
 # ---------------------------------------------------------------------------
 # Defaults – mirror databricks.yml / setup.sql
 # Override via environment variables or function arguments.

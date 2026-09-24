@@ -36,7 +36,10 @@ const resultsTable = `${safeIdentifier(namespace.catalog)}.${safeIdentifier(name
 function host(): string {
   const value = process.env.DATABRICKS_HOST;
   if (!value) throw new Error("DATABRICKS_HOST is not set");
-  return value.replace(/\/$/, "");
+  const trimmed = value.replace(/\/$/, "");
+  // The Apps platform injects DATABRICKS_HOST as a bare hostname (no protocol).
+  // Node fetch() requires an absolute URL, so prepend https:// when missing.
+  return trimmed.match(/^https?:\/\//) ? trimmed : `https://${trimmed}`;
 }
 
 async function authToken(): Promise<string> {
