@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Visual Inspection",
-  description: "Native multimodal manufacturing data with Databricks FILE",
+  title: "Visual Quality Inspection",
+  description: "Automated visual quality inspection for pharmaceutical manufacturing",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

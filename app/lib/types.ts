@@ -1,4 +1,8 @@
 export type InspectionStatus = "PASS" | "FAIL" | "REVIEW";
+export type CapStatus = "PRESENT" | "MISSING" | "UNKNOWN";
+export type CheckStatus = "OK" | "MISALIGNED" | "DETACHED" | "DAMAGED" | "UNKNOWN";
+export type ContaminationStatus = "NONE" | "PRESENT" | "UNKNOWN";
+export type ImageQuality = "SUFFICIENT" | "INSUFFICIENT";
 
 export type InspectionRecord = {
   inspectionId: string;
@@ -8,6 +12,13 @@ export type InspectionRecord = {
   equipmentId: string;
   inspectionTs: string;
   ingestedAt: string;
+  capStatus: CapStatus;
+  labelAlignment: "OK" | "MISALIGNED" | "UNKNOWN";
+  labelAttachment: "OK" | "DETACHED" | "UNKNOWN";
+  housingCondition: "OK" | "DAMAGED" | "UNKNOWN";
+  contamination: ContaminationStatus;
+  imageObstruction: boolean;
+  imageQuality: ImageQuality;
   status: InspectionStatus;
   observedIssue: string;
   confidence: number;
